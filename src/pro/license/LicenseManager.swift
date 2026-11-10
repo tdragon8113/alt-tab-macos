@@ -48,11 +48,23 @@ class LicenseManager {
     /// can drive activation without side effects.
     var onBeforeProUnlock: () -> Void = { }
 
-    private(set) var state: LicenseState = .trialExpired {
+    #if ALT_TAB_SELF_PRO
+    private static let initialState: LicenseState = .pro
+    #else
+    private static let initialState: LicenseState = .trialExpired
+    #endif
+
+    private(set) var state: LicenseState = LicenseManager.initialState {
         didSet { onStateChanged?(state) }
     }
 
-    var customerEmail: String? { defaults.string(forKey: Self.customerEmailKey) }
+    var customerEmail: String? {
+        #if ALT_TAB_SELF_PRO
+        return "Self-build"
+        #else
+        return defaults.string(forKey: Self.customerEmailKey)
+        #endif
+    }
 
     var isLifetimeVariant: Bool {
         guard let variant = keychain.value(account: Self.keychainVariantAccount) else { return false }
@@ -90,6 +102,11 @@ class LicenseManager {
 
     func initialize() {
         state = computeState()
+        #if ALT_TAB_SELF_PRO
+        // The default state is already `.pro`, so `didSet` won't fire; run the hook once
+        // so Menubar / Settings UI refresh into their Pro appearance at launch.
+        onStateChanged?(state)
+        #endif
         scheduleAsyncRevalidationIfNeeded()
     }
 
@@ -174,6 +191,10 @@ class LicenseManager {
     }
 
     func computeState() -> LicenseState {
+        #if ALT_TAB_SELF_PRO
+        // Self-build: Pro is always unlocked. No keychain / server involvement.
+        return .pro
+        #else
         if keychain.value(account: Self.keychainKeyAccount) != nil {
             let lastValidationResult = defaults.bool(forKey: "lastValidationResult")
             guard lastValidationResult else { return .trialExpired }
@@ -187,6 +208,7 @@ class LicenseManager {
             return .pro
         }
         return computeTrialState()
+        #endif
     }
 
     private func computeTrialState() -> LicenseState {
@@ -207,6 +229,10 @@ class LicenseManager {
     }
 
     func revalidateWithServer() {
+        #if ALT_TAB_SELF_PRO
+        // Self-build: never phone home about a license.
+        return
+        #else
         guard let licenseKey = keychain.value(account: Self.keychainKeyAccount),
               let instanceId = keychain.value(account: Self.keychainInstanceAccount) else { return }
         api.validate(licenseKey, instanceId: instanceId) { [weak self] result in
@@ -229,6 +255,7 @@ class LicenseManager {
                 }
             }
         }
+        #endif
     }
 
     #if DEBUG

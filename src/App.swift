@@ -406,6 +406,7 @@ class App: AppCenterApplication {
         CursorEvents.observe()
         TrackpadEvents.observe()
         CliEvents.observe()
+        #if !ALT_TAB_SELF_PRO
         App.sparkleDelegate = SparkleDelegate()
         App.updaterController = SPUStandardUpdaterController(
             startingUpdater: false,
@@ -414,6 +415,7 @@ class App: AppCenterApplication {
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
             App.updaterController?.startUpdater()
         }
+        #endif
         PreferencesEvents.initialize()
         BenchmarkRunner.startIfNeeded()
         showSettingsWindowOnFirstLaunchIfNeeded()

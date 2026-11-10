@@ -223,6 +223,11 @@ class UpgradeTab {
             setHeroVisible(false)
             featuresList.isHidden = true
             activateLinkRow.isHidden = true
+            #if ALT_TAB_SELF_PRO
+            // Self-build has no real license/account; hide Manage/Deactivate rows.
+            proManageTable.isHidden = true
+            statusLabel.attributedStringValue = makeStatusSubtitle(NSLocalizedString("Pro activated (self-build)", comment: ""))
+            #else
             proManageTable.isHidden = false
             let email = LicenseManager.shared.customerEmail ?? ""
             let format = LicenseManager.shared.isLifetimeVariant
@@ -234,6 +239,7 @@ class UpgradeTab {
                 attributed.addAttribute(.font, value: NSFont.systemFont(ofSize: 12, weight: .semibold), range: NSRange(emailRange, in: fullText))
             }
             statusLabel.attributedStringValue = attributed
+            #endif
         case .trial(let daysRemaining):
             setHeroVisible(true)
             featuresList.isHidden = false
