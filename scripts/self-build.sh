@@ -46,16 +46,21 @@ osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || tru
 sleep 1
 
 # 3. Build Release with the Pro-unlock flag. Debug/Test never get this flag.
+# Bundle id / signing / deployment target come from config/local.xcconfig: command-line settings
+# apply to every target, and forcing CODE_SIGN_IDENTITY onto SPM resource bundles breaks signing.
+if ! grep -q "^PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID" config/local.xcconfig 2>/dev/null; then
+  echo "error: config/local.xcconfig must set PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID" >&2
+  exit 1
+fi
+# CI injects CURRENT_PROJECT_VERSION; without it Info.plist has no CFBundleVersion and App.version crashes.
+VERSION="$(grep -m1 -oE '^#+ \[[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+[[ -n "$VERSION" ]] || { echo "error: could not read version from CHANGELOG.md" >&2; exit 1; }
 xcodebuild \
   -project alt-tab-macos.xcodeproj \
   -scheme Release \
   -configuration Release \
   -derivedDataPath DerivedData \
-  PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-  CODE_SIGN_IDENTITY="Local Self-Signed" \
-  OTHER_CODE_SIGN_FLAGS="--timestamp=none --deep --options runtime" \
-  MACOSX_DEPLOYMENT_TARGET=12.0 \
-  SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
+  CURRENT_PROJECT_VERSION="$VERSION" \
   SWIFT_ACTIVE_COMPILATION_CONDITIONS="ALT_TAB_SELF_PRO" \
   build
 
